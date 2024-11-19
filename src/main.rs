@@ -9,6 +9,10 @@ use dotenv::dotenv;
 use crate::app::routes::app_routes;
 use crate::config::database::establish_connection;
 use tracing_subscriber;
+use tower_http::trace::{self, TraceLayer};
+use tracing::Level;
+use tracing::{info, error};
+use std::process;
 
 mod app;
 mod config;
@@ -16,7 +20,9 @@ mod models;
 mod utils;
 
 // Constants
+#[allow(dead_code)]
 const SERVER_PORT: &str = "8080";
+#[allow(dead_code)]
 const SERVER_HOST: &str = "0.0.0.0";
 
 #[tokio::main]
@@ -25,15 +31,27 @@ async fn main() {
     dotenv().ok();
 
     // Initialize tracing for better logging
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .compact()
+        .init();
+
+    // Log before attempting to establish a database connection
+    info!("Attempting to establish a database connection...");
 
     // Establish a database connection pool
     let pool = establish_connection().await;
+    info!("✅ Database connection pool established successfully.");
 
     // Set up the application with routes and middleware
     let app = Router::new()
         .merge(app_routes())
-        .layer(Extension(pool));
+        .layer(Extension(pool))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
+        );
 
     // Fetch host and port from environment variables
     let (host, port) = from_env();
@@ -41,7 +59,7 @@ async fn main() {
         .parse::<SocketAddr>()
         .expect("Failed to parse host and port");
 
-    println!("🚀 Server running on {}", addr);
+    tracing::info!("🚀 Server running on {}", addr);
 
     // Start the server with graceful shutdown
     axum_server::bind(addr)

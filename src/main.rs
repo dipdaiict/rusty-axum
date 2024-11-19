@@ -11,8 +11,7 @@ use crate::config::database::establish_connection;
 use tracing_subscriber;
 use tower_http::trace::{self, TraceLayer};
 use tracing::Level;
-use tracing::{info, error};
-use std::process;
+use tracing::info;
 
 mod app;
 mod config;

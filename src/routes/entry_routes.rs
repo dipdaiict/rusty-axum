@@ -4,9 +4,9 @@
 
 use axum::routing::get;
 use axum::Router;
-use crate::app::handlers;
+use crate::handler::entry_handlers;
 
 pub fn app_routes() -> Router {
     Router::new()
-        .route("/", get(handlers::welcome)) // Add the `welcome` route
+        .route("/", get(entry_handlers::welcome)) // Add the `welcome` route
 }

@@ -6,17 +6,25 @@ use axum::{
 };
 use std::net::SocketAddr;
 use dotenv::dotenv;
-use crate::app::routes::app_routes;
+// use crate::app::routes::app_routes;
+
 use crate::config::database::establish_connection;
 use tracing_subscriber;
 use tower_http::trace::{self, TraceLayer};
 use tracing::Level;
 use tracing::info;
+// use get_if_addrs::get_if_addrs;
+// use crate::routes::user_routes;
+use crate::routes::entry_routes;
+
 
 mod app;
 mod config;
 mod models;
 mod utils;
+mod routes; // Add a mod.rs file in `routes/` to organize all routes
+mod handler;
+mod schema; // Declares the `schema` module
 
 // Constants
 #[allow(dead_code)]
@@ -42,9 +50,9 @@ async fn main() {
     let pool = establish_connection().await;
     info!("✅ Database connection pool established successfully.");
 
-    // Set up the application with routes and middleware
     let app = Router::new()
-        .merge(app_routes())
+        .merge(entry_routes::app_routes())
+        // .merge(user_routes::user_routes()) // Merge user-specific routes
         .layer(Extension(pool))
         .layer(
             TraceLayer::new_for_http()
@@ -58,7 +66,11 @@ async fn main() {
         .parse::<SocketAddr>()
         .expect("Failed to parse host and port");
 
-    tracing::info!("🚀 Server running on {}", addr);
+    // Dynamically fetch local and network IPs
+    let network_ip = get_network_ip().unwrap_or_else(|| "Unavailable".to_string());
+    info!("🚀 Server running on:");
+    info!(" - Local: http://127.0.0.1:{}", port);
+    info!(" - Network: http://{}:{}", network_ip, port);
 
     // Start the server with graceful shutdown
     axum_server::bind(addr)
@@ -75,4 +87,15 @@ fn from_env() -> (String, u16) {
         .and_then(|p| p.parse::<u16>().ok()) // Ensure it's a valid port number
         .unwrap_or(3000); // Default to 3000 if parsing or variable is missing
     (host, port)
+}
+
+// Geth the IP:
+/// Get the network IP of the machine (IPv4 only)
+fn get_network_ip() -> Option<String> {
+    use get_if_addrs::get_if_addrs;
+
+    get_if_addrs().ok()?.into_iter()
+        .filter(|iface| !iface.is_loopback() && iface.ip().is_ipv4())
+        .map(|iface| iface.ip().to_string())
+        .next()
 }

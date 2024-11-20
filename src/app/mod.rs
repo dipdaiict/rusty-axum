@@ -6,6 +6,4 @@
 // Example: [Re-export submodules]
 pub mod state; 
 pub mod errors;
-pub mod routes;
-pub mod handlers;
 pub mod middlewares;

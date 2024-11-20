@@ -6,25 +6,21 @@ use axum::{
 };
 use std::net::SocketAddr;
 use dotenv::dotenv;
-// use crate::app::routes::app_routes;
-
 use crate::config::database::establish_connection;
 use tracing_subscriber;
-use tower_http::trace::{self, TraceLayer};
+use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnResponse};
 use tracing::Level;
 use tracing::info;
-// use get_if_addrs::get_if_addrs;
-// use crate::routes::user_routes;
+use crate::routes::user_routes;
 use crate::routes::entry_routes;
-
 
 mod app;
 mod config;
 mod models;
 mod utils;
-mod routes; // Add a mod.rs file in `routes/` to organize all routes
+mod routes;
 mod handler;
-mod schema; // Declares the `schema` module
+mod schema;
 
 // Constants
 #[allow(dead_code)]
@@ -50,15 +46,16 @@ async fn main() {
     let pool = establish_connection().await;
     info!("✅ Database connection pool established successfully.");
 
+    // Create the router
     let app = Router::new()
-        .merge(entry_routes::app_routes())
-        // .merge(user_routes::user_routes()) // Merge user-specific routes
-        .layer(Extension(pool))
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
-                .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
-        );
+    .merge(entry_routes::app_routes()) // Merge general entry routes
+    .merge(user_routes::create_routes(pool.clone())) // Pass the pool to user routes
+    .layer(Extension(pool)) // Share the pool with all routes via Extension
+    .layer(
+        TraceLayer::new_for_http()
+            .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+            .on_response(DefaultOnResponse::new().level(Level::INFO)),
+    );
 
     // Fetch host and port from environment variables
     let (host, port) = from_env();

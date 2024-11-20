@@ -1,6 +1,8 @@
 // Handle database connections and setup here.
 // Example: Create a connection pool using SQLx or Diesel.
 
+// Path: src/config/database.rs
+
 use std::env;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
